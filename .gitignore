@@ -156,3 +156,11 @@ out
 
 /dist
 .vite
+
+**/target/**/bundle/
+.cargo/registry/
+.cargo/git/
+target/**
+src-tauri/target/**
+src-tauri/bundle/**
+src-tauri/gen/**

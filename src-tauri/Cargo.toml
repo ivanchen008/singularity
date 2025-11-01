@@ -1,0 +1,15 @@
+[package]
+name = "singularity-tauri"
+version = "0.1.0"
+authors = ["ivan chen"]
+edition = "2021"
+build = "build.rs"  # 确保这一行存在
+
+[dependencies]
+# Use a concrete recent Tauri v2 release and remove the unsupported `api-all` feature.
+# If you need specific Tauri features (system-tray, global-shortcut, etc.) add them here.
+tauri = { version = "2.9.2", features = [] }
+
+[build-dependencies]
+tauri-build = { version = "2.0", features = [] } # Use the version that matches your `tauri` crate
+
