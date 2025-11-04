@@ -14,7 +14,7 @@ import {
     inverse, modelViewMatrix, transformDirection, modelViewPosition, modelWorldMatrixInverse, cameraWorldMatrix,
     cameraPosition, positionWorldDirection, sub, dot, Loop, length, remap, remapClamp, lengthSq, equirectUV
 } from 'three/tsl'
-``
+
 import {
     ColorRamp2_Linear, ColorRamp3_Linear, srgbToLinear, linearToSrgb, noise21, Rot, adjustTemperature, adjustHue,
     adjustSaturation, adjustLevels, fbm, hash12, brickTexture, vecToFac, mixColorHSV, emission, ColorRamp2_Constant,
@@ -36,6 +36,12 @@ export default class BlackHole extends Model {
         stepSize: uniform( float( 0.0071 ) ),
         noiseFactor: uniform( float( 0.01 ) ),
         power: uniform( float( 0.3 ) ),
+        // LOD相关uniforms
+        lodDistance1: uniform(float(5.0)), // 高质量阈值
+        lodDistance2: uniform(float(10.0)), // 中质量阈值
+        lodIterationsHigh: uniform(float(256)), // 高质量迭代次数
+        lodIterationsMed: uniform(float(128)), // 中质量迭代次数  
+        lodIterationsLow: uniform(float(64)), // 低质量迭代次数
 
         clamp1: uniform( float( 0.5 ) ),
         clamp2: uniform( float( 1.0 ) ),
@@ -114,7 +120,24 @@ export default class BlackHole extends Model {
             const power = this.uniforms.power;
             const originRadius = this.uniforms.originRadius;
             const bandWidth = this.uniforms.width;
-            const iterCount = this.uniforms.iterations;
+            // 计算相机到物体的距离
+            const distToCamera = lengthSqrt(sub(cameraPosition, positionWorld));
+
+            // 根据距离选择迭代次数
+            const iterHigh = this.uniforms.lodIterationsHigh;
+            const iterMed = this.uniforms.lodIterationsMed;
+            const iterLow = this.uniforms.lodIterationsLow;
+            const dist1 = this.uniforms.lodDistance1;
+            const dist2 = this.uniforms.lodDistance2;
+
+            // 平滑插值不同LOD等级
+            const t1 = smoothstep(dist1.sub(1.0), dist1.add(1.0), distToCamera);
+            const t2 = smoothstep(dist2.sub(1.0), dist2.add(1.0), distToCamera);
+            const iterCount = mix(
+                mix(iterHigh, iterMed, t1),
+                iterLow,
+                t2
+            );
 
             // ==== Geometry- and view-dependent bases ====
             const objCoords = positionGeometry.mul(vec3(1, 1, -1)).xzy; // flip Z then swizzle
@@ -278,6 +301,46 @@ export default class BlackHole extends Model {
         exampleFolder.addBinding( test, 'value', {
             label: 'TEST',
         } )
+
+        const lodFolder = this.world.debugFolder.addFolder({
+            title: 'LOD 设置',
+            expanded: true
+        })
+
+        lodFolder.addBinding(this.uniforms.lodDistance1, 'value', {
+            label: '高质量阈值距离',
+            min: 1,
+            max: 20,
+            step: 0.5
+        })
+
+        lodFolder.addBinding(this.uniforms.lodDistance2, 'value', {
+            label: '中质量阈值距离',
+            min: 5,
+            max: 30,
+            step: 0.5
+        })
+
+        lodFolder.addBinding(this.uniforms.lodIterationsHigh, 'value', {
+            label: '高质量迭代次数',
+            min: 128,
+            max: 512,
+            step: 32
+        })
+
+        lodFolder.addBinding(this.uniforms.lodIterationsMed, 'value', {
+            label: '中质量迭代次数',
+            min: 64,
+            max: 256,
+            step: 32
+        })
+
+        lodFolder.addBinding(this.uniforms.lodIterationsLow, 'value', {
+            label: '低质量迭代次数',
+            min: 32,
+            max: 128,
+            step: 16
+        })
 
         exampleFolder.addBinding( this.uniforms.iterations, 'value', {
             label: 'Iterations',
