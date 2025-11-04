@@ -19,8 +19,20 @@ export default class Camera
 
         this.lerpVector = new THREE.Vector3();
 
+        // autoplay/idle demo for light-bending presentation
+        this.autoPlay = {
+            enabled: true,
+            active: false,
+            idleTimeout: 3000, // ms before autoplay starts
+            amplitude: 0.35, // radians left-right swing (~20deg)
+            speed: 0.5, // oscillation speed
+            lastInteraction: Date.now(),
+            startTime: 0,
+        }
+
         this.setInstance()
         this.setControls()
+        this._setAutoPlayListeners()
     }
 
     setInstance()
@@ -81,6 +93,34 @@ export default class Camera
         this.scene.add( this.transformControls.getHelper() );
 
         this._setListeners()
+        // ensure controls track enable state depending on autoplay
+    }
+
+    // Listen for user interactions to pause/resume autoplay
+    _setAutoPlayListeners () {
+        const reset = () => {
+            this.autoPlay.lastInteraction = Date.now()
+            if ( this.autoPlay.active ) this._disableAutoPlay()
+        }
+
+        // common interaction events
+        ['pointerdown','wheel','touchstart','keydown','mousedown'].forEach( evt => {
+            window.addEventListener(evt, reset, { passive: true })
+        })
+    }
+
+    _enableAutoPlay () {
+        if (!this.autoPlay.enabled) return
+        this.autoPlay.active = true
+        this.autoPlay.startTime = Date.now()
+        // disable manual controls while autoplaying
+        if ( this.controls ) this.controls.enabled = false
+    }
+
+    _disableAutoPlay () {
+        this.autoPlay.active = false
+        // re-enable manual controls
+        if ( this.controls ) this.controls.enabled = true
     }
 
     _setListeners() {
@@ -169,6 +209,40 @@ export default class Camera
     update()
     {
         this.controls?.update()
+        
+        // 自动播放逻辑：如果空闲超过阈值，启用自动左右摆动演示
+        const now = Date.now()
+        if ( this.autoPlay.enabled && !this.autoPlay.active && (now - this.autoPlay.lastInteraction) > this.autoPlay.idleTimeout ) {
+            this._enableAutoPlay()
+        }
+
+        if ( this.autoPlay.active ) {
+            const t = (now - this.autoPlay.startTime) / 1000
+            const angle = Math.sin(t * this.autoPlay.speed) * this.autoPlay.amplitude
+
+            // 在 target 半径上围绕 Y 轴做摆动，保持高度不变
+            const radius = this.defaultCameraPosition.length()
+            const y = this.defaultCameraPosition.y
+            const x = Math.sin(angle) * radius
+            const z = Math.cos(angle) * radius
+
+            // 平滑插值到目标位置
+            const targetPos = new THREE.Vector3(x, y, z)
+            this.instance.position.lerp(targetPos, 0.08)
+            this.instance.lookAt(this.controls.target)
+        } else {
+            // 确保相机保持在允许的范围内
+            const distance = this.instance.position.length();
+            if (distance < this.controls.minDistance || distance > this.controls.maxDistance) {
+                const direction = this.instance.position.clone().normalize();
+                const clampedDistance = THREE.MathUtils.clamp(
+                    distance,
+                    this.controls.minDistance,
+                    this.controls.maxDistance
+                );
+                this.instance.position.copy(direction.multiplyScalar(clampedDistance));
+            }
+        }
 
         this.instance.updateMatrixWorld() // To be used in projection
     }
