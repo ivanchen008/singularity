@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+    <head>
+        <meta charset="UTF-8" />
+        <title>核嬗变与裂变流程图 (three.js)</title>
+        <style>
+            body {
+                margin: 0;
+                background: #222;
+            }
+            #info {
+                position: absolute;
+                left: 20px;
+                top: 20px;
+                color: #fff;
+                font-size: 15px;
+                font-family: "Microsoft YaHei", "SimHei", Arial, sans-serif;
+                max-width: 400px;
+            }
+            canvas {
+                display: block;
+            }
+        </style>
+    </head>
+    <body>
+        <div id="info">
+            <b>流程要点：</b><br />
+            1) 铀-238 经中子俘获变为铀-239（不稳定）。<br />
+            2) 铀-239 通过两次 β⁻ 衰变 → 镎-239 → 钚-239。<br />
+            3) 钚-239 可发生裂变，释放能量和多个中子，<br />
+            这些中子可继续被 U-238 俘获或引发更多裂变（链式反应）。<br />
+            <span style="font-size: 13px"
+                >注：图中 n 表示中子数，p 表示质子数。</span
+            >
+        </div>
+        <script src="https://cdn.jsdelivr.net/npm/three@0.150.1/build/three.min.js"></script>
+        <script>
+            const scene = new THREE.Scene();
+            const camera = new THREE.OrthographicCamera(
+                -8,
+                14,
+                5,
+                -1,
+                0.1,
+                100
+            );
+            camera.position.z = 10;
+
+            const renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.body.appendChild(renderer.domElement);
+
+            // 核素节点数据
+            const stages = [
+                {
+                    x: 0,
+                    y: 2,
+                    label: "铀-238 (U-238)",
+                    p: 92,
+                    n: 146,
+                    excited: false,
+                },
+                {
+                    x: 3,
+                    y: 2,
+                    label: "铀-239 (U-239)\n（俘获中子，激发状态）",
+                    p: 92,
+                    n: 147,
+                    excited: true,
+                },
+                {
+                    x: 6,
+                    y: 2,
+                    label: "镎-239 (Np-239)\n（β⁻ 衰变）",
+                    p: 93,
+                    n: 146,
+                    excited: false,
+                },
+                {
+                    x: 9,
+                    y: 2,
+                    label: "钚-239 (Pu-239)\n（第二次 β⁻ 衰变）",
+                    p: 94,
+                    n: 145,
+                    excited: false,
+                },
+            ];
+
+            // 绘制核素圆和标签
+            function drawNucleus(stage) {
+                // 圆
+                const geometry = new THREE.CircleGeometry(0.7, 64);
+                const material = new THREE.MeshBasicMaterial({
+                    color: stage.excited ? 0xffcc00 : 0x00bfff,
+                    transparent: true,
+                    opacity: 0.7,
+                });
+                const circle = new THREE.Mesh(geometry, material);
+                circle.position.set(stage.x, stage.y, 0);
+                scene.add(circle);
+
+                // 标签
+                addText(stage.label, stage.x, stage.y + 1.0, 0.18, true);
+                addText(
+                    `质子 p = ${stage.p}`,
+                    stage.x - 0.5,
+                    stage.y + 0.25,
+                    0.13
+                );
+                addText(
+                    `中子 n = ${stage.n}`,
+                    stage.x - 0.5,
+                    stage.y - 0.25,
+                    0.13
+                );
+
+                // 激发态小线条
+                if (stage.excited) {
+                    for (let i = 0; i < 10; i++) {
+                        const angle = (i * Math.PI * 2) / 10;
+                        const x1 = stage.x + 0.7 * Math.cos(angle);
+                        const y1 = stage.y + 0.7 * Math.sin(angle);
+                        const x2 = stage.x + 1.0 * Math.cos(angle);
+                        const y2 = stage.y + 1.0 * Math.sin(angle);
+                        drawLine(x1, y1, x2, y2, 0xffcc00, 2);
+                    }
+                }
+            }
+
+            // 绘制箭头
+            function drawArrow(x1, y1, x2, y2, text) {
+                drawLine(x1, y1, x2, y2, 0xffffff, 2);
+                // 箭头头部
+                const dx = x2 - x1,
+                    dy = y2 - y1;
+                const len = Math.sqrt(dx * dx + dy * dy);
+                const tx = x2 - (0.2 * dx) / len,
+                    ty = y2 - (0.2 * dy) / len;
+                drawLine(
+                    x2,
+                    y2,
+                    tx + (0.1 * dy) / len,
+                    ty - (0.1 * dx) / len,
+                    0xffffff,
+                    2
+                );
+                drawLine(
+                    x2,
+                    y2,
+                    tx - (0.1 * dy) / len,
+                    ty + (0.1 * dx) / len,
+                    0xffffff,
+                    2
+                );
+                // 标签
+                addText(text, (x1 + x2) / 2, y1 + 0.5, 0.15);
+            }
+
+            // 绘制线
+            function drawLine(x1, y1, x2, y2, color, width = 1) {
+                const material = new THREE.LineBasicMaterial({
+                    color,
+                    linewidth: width,
+                });
+                const points = [
+                    new THREE.Vector3(x1, y1, 0),
+                    new THREE.Vector3(x2, y2, 0),
+                ];
+                const geometry = new THREE.BufferGeometry().setFromPoints(
+                    points
+                );
+                const line = new THREE.Line(geometry, material);
+                scene.add(line);
+            }
+
+            // 绘制文本
+            function addText(text, x, y, size = 0.15, bold = false) {
+                const canvas = document.createElement("canvas");
+                canvas.width = 512;
+                canvas.height = 64;
+                const ctx = canvas.getContext("2d");
+                ctx.font =
+                    (bold ? "bold " : "") +
+                    `${Math.floor(
+                        size * 40
+                    )}px 'Microsoft YaHei','SimHei',Arial,sans-serif`;
+                ctx.fillStyle = "#fff";
+                ctx.textBaseline = "top";
+                let lines = text.split("\n");
+                lines.forEach((line, i) => ctx.fillText(line, 10, 10 + i * 28));
+                const texture = new THREE.CanvasTexture(canvas);
+                const mat = new THREE.SpriteMaterial({
+                    map: texture,
+                    transparent: true,
+                });
+                const sprite = new THREE.Sprite(mat);
+                sprite.position.set(x, y, 0.1);
+                sprite.scale.set(
+                    size * lines[0].length,
+                    size * 2.5 * lines.length,
+                    1
+                );
+                scene.add(sprite);
+            }
+
+            // 绘制主流程
+            stages.forEach(drawNucleus);
+
+            // 裂变产物
+            const x5 = 12,
+                y5 = 2;
+            addText("裂变示意", x5, y5 + 1.1, 0.18, true);
+            const frag1 = new THREE.Mesh(
+                new THREE.CircleGeometry(0.5, 48),
+                new THREE.MeshBasicMaterial({
+                    color: 0xff6666,
+                    opacity: 0.7,
+                    transparent: true,
+                })
+            );
+            frag1.position.set(x5 - 0.5, y5 - 0.3, 0);
+            scene.add(frag1);
+            addText("裂变产物A\n(≈中子/质子比不同)", x5 - 0.5, y5 - 0.3, 0.13);
+            const frag2 = new THREE.Mesh(
+                new THREE.CircleGeometry(0.4, 48),
+                new THREE.MeshBasicMaterial({
+                    color: 0x66ff99,
+                    opacity: 0.7,
+                    transparent: true,
+                })
+            );
+            frag2.position.set(x5 + 0.7, y5 - 0.3, 0);
+            scene.add(frag2);
+            addText("裂变产物B\n(≈中子/质子比不同)", x5 + 0.7, y5 - 0.3, 0.13);
+
+            // 裂变中子箭头
+            for (let i = 0; i < 3; i++) {
+                drawArrow(
+                    x5 + 1.2 + 0.2 * i,
+                    y5 - 0.3 + 0.1 * i,
+                    x5 + 0.8 + 0.2 * i,
+                    y5 - 0.3 + 0.05 * i,
+                    ""
+                );
+            }
+            addText(
+                "游离中子\n（可继续俘获或引发裂变）",
+                x5 + 2.1,
+                y5 - 0.1,
+                0.13
+            );
+
+            // 主流程箭头与标签
+            drawArrow(
+                stages[0].x + 0.7,
+                stages[0].y,
+                stages[1].x - 0.7,
+                stages[1].y,
+                "俘获中子\n(+1 中子)"
+            );
+            drawArrow(
+                stages[1].x + 0.7,
+                stages[1].y,
+                stages[2].x - 0.7,
+                stages[2].y,
+                "β⁻ 衰变\n(中子→质子 + 电子 + 反中微子)"
+            );
+            drawArrow(
+                stages[2].x + 0.7,
+                stages[2].y,
+                stages[3].x - 0.7,
+                stages[3].y,
+                "再次 β⁻ 衰变\n(中子→质子 + 电子 + 反中微子)"
+            );
+            drawArrow(
+                stages[3].x + 0.7,
+                stages[3].y,
+                x5 - 1.0,
+                y5,
+                "用于裂变或做燃料\n(吸收快中子并裂变释放能量)"
+            );
+
+            renderer.setClearColor(0x222222, 1);
+
+            function animate() {
+                renderer.render(scene, camera);
+                requestAnimationFrame(animate);
+            }
+            animate();
+        </script>
+    </body>
+</html>

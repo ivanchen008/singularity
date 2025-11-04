@@ -28,7 +28,7 @@ export default class Debug {
         this.active = true
 
 
-        if ( this.active ) {
+        if (this.active) {
             this.panel = new Pane({
                 title: 'Debug',
                 container: document.getElementById('debug-panel'),
@@ -36,10 +36,28 @@ export default class Debug {
             });
 
             this.stats = new Stats()
-            this.stats.showPanel( 0 );
+            this.stats.showPanel(0);
 
-            document.body.appendChild( this.stats.dom )
+            document.body.appendChild(this.stats.dom)
+            // simple GPU metric overlay
+            this._createGpuOverlay()
         }
+    }
+
+    _createGpuOverlay() {
+        this.gpuOverlay = document.createElement('div')
+        this.gpuOverlay.style.position = 'fixed'
+        this.gpuOverlay.style.left = '8px'
+        this.gpuOverlay.style.bottom = '8px'
+        this.gpuOverlay.style.padding = '6px 8px'
+        this.gpuOverlay.style.background = 'rgba(0,0,0,0.6)'
+        this.gpuOverlay.style.color = '#fff'
+        this.gpuOverlay.style.fontFamily = 'monospace'
+        this.gpuOverlay.style.fontSize = '12px'
+        this.gpuOverlay.style.zIndex = '100000'
+        this.gpuOverlay.style.pointerEvents = 'none'
+        this.gpuOverlay.textContent = 'GPU: — ms'
+        document.body.appendChild(this.gpuOverlay)
     }
 
     postInit() {
@@ -47,21 +65,21 @@ export default class Debug {
         //this.camera = this.experience.camera.instance
     }
 
-    createDebugNode( node, world ) {
+    createDebugNode(node, world) {
         this.debugNode = node;
         this.world = world;
         this.scene = world.scene;
         this.camera = world.camera.instance;
 
-        const material = new THREE.SpriteNodeMaterial( {
+        const material = new THREE.SpriteNodeMaterial({
             // depthWrite: false,
             depthTest: false,
             // //blending: THREE.NoBlending
             toneMapped: false
-        } );
+        });
 
 
-        if( node.isNode ) {
+        if (node.isNode) {
 
             material.colorNode = Fn(() => {
                 // const _uv = uv().flipY().toVar()
@@ -84,8 +102,8 @@ export default class Debug {
         //     return texture( this.resources.items.displacementTexture, uv() )
         // })()
 
-        const sprite = this.sprite = new THREE.Sprite( material );
-        sprite.center.set( 0.0, 0.0 );
+        const sprite = this.sprite = new THREE.Sprite(material);
+        sprite.center.set(0.0, 0.0);
         sprite.renderOrder = 10000;
 
         this.scene.add(sprite);
@@ -94,19 +112,25 @@ export default class Debug {
     }
 
     _updateSprite() {
-        if ( !this.debugNode ) return;
+        if (!this.debugNode) return;
 
         const position = Helpers.projectNDCTo3D(-1, -1, this.camera, 10)
-        this.sprite.position.copy( position )
+        this.sprite.position.copy(position)
     }
 
     resize() {
         this._updateSprite();
     }
 
-    update( deltaTime ) {
-        if ( this.debugNode ) {
+    update(deltaTime) {
+        if (this.debugNode) {
             this._updateSprite()
+        }
+
+        // update GPU overlay if available
+        if (this.gpuOverlay && window.experience && window.experience.metrics) {
+            const g = window.experience.metrics.gpuFrameTime
+            this.gpuOverlay.textContent = `GPU: ${(typeof g === 'number') ? g.toFixed(2) : '—'} ms`
         }
     }
 }
