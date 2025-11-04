@@ -1,0 +1,39 @@
+name: Deploy to GitHub Pages and Trigger Main Site
+
+on:
+  push:
+    branches: [ main, master ]  # 监听主分支推送
+  workflow_dispatch:  # 允许手动触发
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v3
+      
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          
+      - name: 🔧 Install dependencies
+        run: npm install
+        
+      - name: 🏗️ Build project
+        run: npm run build
+        
+      - name: 🚀 Deploy to gh-pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./dist
+          
+      - name: 🔔 Trigger main site deployment
+        run: |
+          curl -X POST \
+            -H "Accept: application/vnd.github.v3+json" \
+            -H "Authorization: token ${{ secrets.PERSONAL_ACCESS_TOKEN }}" \
+            https://api.github.com/repos/ivanchen008/ivanchen008.github.io/dispatches \
+            -d '{"event_type":"update-singularity"}'
