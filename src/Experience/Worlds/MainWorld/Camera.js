@@ -28,6 +28,8 @@ export default class Camera
             speed: 0.5, // oscillation speed
             lastInteraction: Date.now(),
             startTime: 0,
+            homing: false, // 是否处于归位阶段
+            homeAngle: 0,  // 自动播放起始角度
         }
 
         this.setInstance()
@@ -117,7 +119,13 @@ export default class Camera
     _enableAutoPlay () {
         if (!this.autoPlay.enabled) return
         this.autoPlay.active = true
+        this.autoPlay.homing = true // 先归位
         this.autoPlay.startTime = Date.now()
+        // 记录当前角度
+        const pos = this.instance.position
+        const radius = pos.length()
+        // 只考虑xz平面
+        this.autoPlay.currentAngle = Math.atan2(pos.x, pos.z)
         // disable manual controls while autoplaying
         if ( this.controls ) this.controls.enabled = false
     }
@@ -222,17 +230,38 @@ export default class Camera
         }
 
         if ( this.autoPlay.active ) {
-            // 自动播放时，保持当前距离，只左右移动
-            const t = (now - this.autoPlay.startTime) / 1000;
-            const angle = Math.sin(t * this.autoPlay.speed) * this.autoPlay.amplitude;
-            // 取当前距离和高度
             const radius = this.instance.position.length();
             const y = this.instance.position.y;
-            const x = Math.sin(angle) * radius;
-            const z = Math.cos(angle) * radius;
-            const targetPos = new THREE.Vector3(x, y, z);
-            this.instance.position.lerp(targetPos, 0.08);
-            this.instance.lookAt(this.controls.target);
+            if (this.autoPlay.homing) {
+                // 归位阶段：平滑插值到 homeAngle
+                const curAngle = Math.atan2(this.instance.position.x, this.instance.position.z);
+                const targetAngle = this.autoPlay.homeAngle;
+                // 角度差归一化到 [-PI, PI]
+                let delta = targetAngle - curAngle;
+                while (delta > Math.PI) delta -= Math.PI * 2;
+                while (delta < -Math.PI) delta += Math.PI * 2;
+                // 插值到目标角度
+                const nextAngle = curAngle + delta * 0.08;
+                const x = Math.sin(nextAngle) * radius;
+                const z = Math.cos(nextAngle) * radius;
+                const targetPos = new THREE.Vector3(x, y, z);
+                this.instance.position.lerp(targetPos, 0.08);
+                this.instance.lookAt(this.controls.target);
+                // 如果已经很接近目标角度，进入循环动画
+                if (Math.abs(delta) < 0.01) {
+                    this.autoPlay.homing = false;
+                    this.autoPlay.startTime = Date.now(); // 归位完成后重置动画起点
+                }
+            } else {
+                // 循环动画
+                const t = (now - this.autoPlay.startTime) / 1000;
+                const angle = Math.sin(t * this.autoPlay.speed) * this.autoPlay.amplitude;
+                const x = Math.sin(angle) * radius;
+                const z = Math.cos(angle) * radius;
+                const targetPos = new THREE.Vector3(x, y, z);
+                this.instance.position.lerp(targetPos, 0.08);
+                this.instance.lookAt(this.controls.target);
+            }
         } else {
             // 确保相机保持在允许的范围内
             const distance = this.instance.position.length();
