@@ -26,12 +26,14 @@ export default class Camera
     setInstance()
     {
         //const FOV = this.experience.isMobile ? 35 : 25
-        this.instance = new THREE.PerspectiveCamera(50, this.sizes.width / this.sizes.height, 0.1, 2000)
-        this.defaultCameraPosition = new THREE.Vector3(1, 0.5, 3);
+        this.instance = new THREE.PerspectiveCamera(45, this.sizes.width / this.sizes.height, 0.1, 100)
+    this.defaultCameraPosition = new THREE.Vector3(0, 0, 4.5); // 设置默认观察距离（略微拉远，限制最大放大）
 
         this.instance.position.copy(this.defaultCameraPosition)
         this.instance.lookAt(new THREE.Vector3(0, 0, 0));
 
+        // 设置相机初始位置
+        this.targetPosition = this.defaultCameraPosition.clone();
         this.lerpVector.copy(this.instance.position);
     }
 
@@ -39,10 +41,26 @@ export default class Camera
     {
         this.controls = new OrbitControls(this.instance, this.canvas)
         this.controls.enableDamping = true
-        this.controls.minDistance = 0;
-        this.controls.maxDistance = 1000;
+        this.controls.dampingFactor = 0.1; // 增加阻尼效果
+        
+        // 限制缩放范围 — 限制最大放大（即最小距离）以稳定性能
+        this.controls.minDistance = 3.0; // 最小缩放距离（用户不能靠得比这更近）
+        this.controls.maxDistance = 8.0; // 最大缩放距离
+        
+        // 限制垂直旋转角度
+        this.controls.minPolarAngle = Math.PI * 0.25; // 45度
+        this.controls.maxPolarAngle = Math.PI * 0.75; // 135度
+        
+        // 启用缩放限制
+        this.controls.enableZoom = true;
+        this.controls.zoomSpeed = 0.5; // 降低缩放速度
+        
         this.controls.enabled = true;
         this.controls.target = new THREE.Vector3(0, 0, 0);
+        
+        // 添加平滑插值
+        this.controls.enableSmooth = true;
+        this.controls.smoothTime = 0.5;
 
 
         // this.controls.mouseButtons = {
