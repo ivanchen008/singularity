@@ -38,8 +38,9 @@ export default class Camera
     setInstance()
     {
         //const FOV = this.experience.isMobile ? 35 : 25
+
         this.instance = new THREE.PerspectiveCamera(45, this.sizes.width / this.sizes.height, 0.1, 100)
-    this.defaultCameraPosition = new THREE.Vector3(0, 0, 4.5); // 设置默认观察距离（略微拉远，限制最大放大）
+        this.defaultCameraPosition = new THREE.Vector3(0, 0, 6); // 设置更远的默认观察距离（黑洞更小）
 
         this.instance.position.copy(this.defaultCameraPosition)
         this.instance.lookAt(new THREE.Vector3(0, 0, 0));
@@ -97,16 +98,20 @@ export default class Camera
     }
 
     // Listen for user interactions to pause/resume autoplay
-    _setAutoPlayListeners () {
-        const reset = () => {
-            this.autoPlay.lastInteraction = Date.now()
-            if ( this.autoPlay.active ) this._disableAutoPlay()
-        }
 
-        // common interaction events
-        ['pointerdown','wheel','touchstart','keydown','mousedown'].forEach( evt => {
-            window.addEventListener(evt, reset, { passive: true })
-        })
+    _setAutoPlayListeners () {
+        // 只监听真实用户输入事件
+        const reset = () => {
+            this.autoPlay.lastInteraction = Date.now();
+            if (this.autoPlay.active) this._disableAutoPlay();
+        };
+        // 鼠标、触摸、键盘输入都重置 idle
+        [
+            'pointerdown', 'pointermove', 'mousedown', 'mousemove',
+            'wheel', 'touchstart', 'touchmove', 'keydown', 'keyup'
+        ].forEach(evt => {
+            window.addEventListener(evt, reset, { passive: true });
+        });
     }
 
     _enableAutoPlay () {
@@ -217,19 +222,17 @@ export default class Camera
         }
 
         if ( this.autoPlay.active ) {
-            const t = (now - this.autoPlay.startTime) / 1000
-            const angle = Math.sin(t * this.autoPlay.speed) * this.autoPlay.amplitude
-
-            // 在 target 半径上围绕 Y 轴做摆动，保持高度不变
-            const radius = this.defaultCameraPosition.length()
-            const y = this.defaultCameraPosition.y
-            const x = Math.sin(angle) * radius
-            const z = Math.cos(angle) * radius
-
-            // 平滑插值到目标位置
-            const targetPos = new THREE.Vector3(x, y, z)
-            this.instance.position.lerp(targetPos, 0.08)
-            this.instance.lookAt(this.controls.target)
+            // 自动播放时，保持当前距离，只左右移动
+            const t = (now - this.autoPlay.startTime) / 1000;
+            const angle = Math.sin(t * this.autoPlay.speed) * this.autoPlay.amplitude;
+            // 取当前距离和高度
+            const radius = this.instance.position.length();
+            const y = this.instance.position.y;
+            const x = Math.sin(angle) * radius;
+            const z = Math.cos(angle) * radius;
+            const targetPos = new THREE.Vector3(x, y, z);
+            this.instance.position.lerp(targetPos, 0.08);
+            this.instance.lookAt(this.controls.target);
         } else {
             // 确保相机保持在允许的范围内
             const distance = this.instance.position.length();
