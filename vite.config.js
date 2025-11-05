@@ -13,7 +13,7 @@ const isCodeSandbox = 'SANDBOX_URL' in process.env || 'CODESANDBOX_HOST' in proc
 export default ({ mode }) => ({
     root: 'src/',
     publicDir: '../static/',
-    base: './',
+    base: process.env.BASE_PATH || '/singularity/',
     resolve:
         {
             alias:
