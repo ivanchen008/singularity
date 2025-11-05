@@ -5,6 +5,9 @@ import path from 'path'
 import Terminal from 'vite-plugin-terminal'
 //import obfuscatorPlugin from "vite-plugin-javascript-obfuscator";
 
+// 从环境变量读取，Vite 会自动加载 .env 文件
+const base = process.env.VITE_BASE_PATH || '/singularity/'
+console.log(`🚀 Building with base path: ${base}`)
 
 const dirname = path.resolve()
 
@@ -13,7 +16,7 @@ const isCodeSandbox = 'SANDBOX_URL' in process.env || 'CODESANDBOX_HOST' in proc
 export default ({ mode }) => ({
     root: 'src/',
     publicDir: '../static/',
-    base: process.env.BASE_PATH || '/singularity/',
+    base: base,
     resolve:
         {
             alias:
