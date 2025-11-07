@@ -108,25 +108,22 @@ cd $HOMEPAGE_PATH
 echo -e "${YELLOW}📊 Git 状态：${NC}"
 git status --short
 
-# 检查是否有变化
-if git diff --quiet && git diff --cached --quiet; then
-  echo -e "${YELLOW}⚠️ 没有检测到文件变化${NC}"
-  echo -e "${YELLOW}这可能是因为：${NC}"
-  echo -e "${YELLOW}  1. 代码没有实际修改${NC}"
-  echo -e "${YELLOW}  2. 构建输出完全相同${NC}"
-  echo -e "${YELLOW}如果你确实修改了代码，请检查 vite.config.js${NC}"
+# 简化检测：只要有文件就提交
+if [ -d "singularity" ] && [ -f "singularity/index.html" ]; then
+    echo -e "${GREEN}✅ 检测到 singularity 目录，准备提交${NC}"
+    
+    git add singularity/
+    
+    echo -e "${BLUE}📝 提交信息：${NC}"
+    git status --short singularity/
+    
+    git commit -m "🔄 更新 singularity: $(date +'%Y-%m-%d %H:%M:%S')"
+    git push
+    
+    echo -e "${GREEN}✅ 主页更新成功${NC}"
 else
-  # 有变化，提交
-  git add singularity/
-  
-  # 显示即将提交的文件
-  echo -e "${BLUE}📝 即将提交的文件：${NC}"
-  git diff --cached --stat
-  
-  git commit -m "🔄 Update singularity: $(date +'%Y-%m-%d %H:%M:%S')"
-  git push
-  
-  echo -e "${GREEN}✅ 主页更新成功${NC}"
+    echo -e "${RED}❌ 错误：singularity 目录或 index.html 不存在${NC}"
+    exit 1
 fi
 
 cd - > /dev/null
