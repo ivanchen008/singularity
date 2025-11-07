@@ -44,7 +44,7 @@ export default class Camera
         //const FOV = this.experience.isMobile ? 35 : 25
 
         this.instance = new THREE.PerspectiveCamera(45, this.sizes.width / this.sizes.height, 0.1, 100)
-        this.defaultCameraPosition = new THREE.Vector3(0, 0, 6); // 设置更远的默认观察距离（黑洞更小）
+        this.defaultCameraPosition = new THREE.Vector3(0, 0, 8); // 设置更远的默认观察距离（黑洞更小）
 
         this.instance.position.copy(this.defaultCameraPosition)
         this.instance.lookAt(new THREE.Vector3(0, 0, 0));
@@ -61,8 +61,8 @@ export default class Camera
         this.controls.dampingFactor = 0.1; // 增加阻尼效果
         
         // 限制缩放范围 — 限制最大放大（即最小距离）以稳定性能
-        this.controls.minDistance = 4; // 最小缩放距离（用户不能靠得比这更近）
-        this.controls.maxDistance = 8.0; // 最大缩放距离
+        this.controls.minDistance = 4.0; // 最小缩放距离（用户不能靠得比这更近）
+        this.controls.maxDistance = 10.0; // 最大缩放距离
         
         // 限制垂直旋转角度
         this.controls.minPolarAngle = Math.PI * 0.25; // 45度
