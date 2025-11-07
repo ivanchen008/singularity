@@ -66,23 +66,35 @@ rm -rf $HOMEPAGE_PATH/singularity
 echo -e "${BLUE}📁 复制构建文件到主页（安全复制）${NC}"
 mkdir -p $HOMEPAGE_PATH/singularity
 
-# 方法1: 使用 rsync（推荐）
-if command -v rsync &> /dev/null; then
-  rsync -av --exclude='.git' dist/ $HOMEPAGE_PATH/singularity/
-else
-  # 方法2: 使用 find + cp（兼容性更好）
-  cd dist
-  find . -type f -not -path './.git/*' -exec cp --parents {} $HOMEPAGE_PATH/singularity/ \;
-  cd -
+echo "📁 重新复制文件..."
+# 使用详细的复制方式
+cp -r ../singularity/dist/* $HOMEPAGE_PATH/singularity
+
+# ==========================================
+# 步骤 4: 添加 .nojekyll 文件
+# ==========================================
+echo "📄 创建 .nojekyll 文件..."
+touch $HOMEPAGE_PATH/singularity/.nojekyll
+
+# ==========================================
+# 步骤 5: 验证部署结果
+# ==========================================
+echo "🔍 验证部署结果..."
+echo "部署后的文件结构:"
+cd $HOMEPAGE_PATH
+
+find singularity -type f -name "*.html" -o -name "*.js" -o -name "*.css" | head -15
+
+# 检查关键文件
+if [ ! -f "singularity/index.html" ]; then
+    echo "❌ singularity/index.html 不存在"
+    exit 1
 fi
 
-# 验证复制并检查是否包含 .git
-echo -e "${YELLOW}🔍 检查复制结果${NC}"
-if [ -d "$HOMEPAGE_PATH/singularity/.git" ]; then
-  echo -e "${RED}❌ 错误：.git 目录被复制了！${NC}"
-  rm -rf $HOMEPAGE_PATH/singularity/.git
-  echo -e "${YELLOW}⚠️  已自动删除 .git 目录${NC}"
-fi
+# 检查HTML中的资源引用
+echo "📄 检查HTML中的资源引用:"
+grep -o 'src="[^"]*"' singularity/index.html | head -5
+grep -o 'href="[^"]*"' singularity/index.html | head -5
 
 echo -e "${GREEN}✅ 复制成功${NC}"
 
