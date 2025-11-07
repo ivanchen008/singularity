@@ -59,7 +59,7 @@ export default class Camera
         this.controls.dampingFactor = 0.1; // 增加阻尼效果
         
         // 限制缩放范围 — 限制最大放大（即最小距离）以稳定性能
-        this.controls.minDistance = 3.0; // 最小缩放距离（用户不能靠得比这更近）
+        this.controls.minDistance = 4; // 最小缩放距离（用户不能靠得比这更近）
         this.controls.maxDistance = 8.0; // 最大缩放距离
         
         // 限制垂直旋转角度
