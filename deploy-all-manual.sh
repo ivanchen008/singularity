@@ -108,24 +108,81 @@ cd $HOMEPAGE_PATH
 echo -e "${YELLOW}📊 Git 状态：${NC}"
 git status --short
 
-# 简化检测：只要有文件就提交
-if [ -d "singularity" ] && [ -f "singularity/index.html" ]; then
-    echo -e "${GREEN}✅ 检测到 singularity 目录，准备提交${NC}"
-    
-    git add singularity/
-    
-    echo -e "${BLUE}📝 提交信息：${NC}"
-    git status --short singularity/
-    
-    git commit -m "🔄 更新 singularity: $(date +'%Y-%m-%d %H:%M:%S')"
-    git push
-    
-    echo -e "${GREEN}✅ 主页更新成功${NC}"
+# 🔧 改进的检测逻辑
+echo -e "${YELLOW}🔍 详细检查变化：${NC}"
+
+HAS_CHANGES=false
+
+# 方法1: 检查特定目录的 git 状态
+if git status --porcelain singularity/ | grep -q .; then
+    echo -e "${GREEN}✅ 检测到 singularity 目录有变化（方法1）${NC}"
+    HAS_CHANGES=true
+fi
+
+# 方法2: 检查工作树和暂存区
+if ! git diff --quiet -- singularity/ || ! git diff --cached --quiet -- singularity/; then
+    echo -e "${GREEN}✅ 检测到变化（方法2）${NC}"
+    HAS_CHANGES=true
+fi
+
+# 方法3: 检查文件数量变化
+current_file_count=$(find singularity/ -type f 2>/dev/null | wc -l)
+if [ "$current_file_count" -gt 0 ]; then
+    echo -e "${GREEN}✅ 目录中有 $current_file_count 个文件${NC}"
+    # 如果有文件就认为可能有变化
+    if [ "$current_file_count" -ne 0 ]; then
+        HAS_CHANGES=true
+    fi
 else
-    echo -e "${RED}❌ 错误：singularity 目录或 index.html 不存在${NC}"
+    echo -e "${RED}❌ 错误：singularity 目录为空${NC}"
     exit 1
 fi
 
+if [ "$HAS_CHANGES" = true ]; then
+    # 有变化，提交
+    git add singularity/
+    
+    # 显示详细的提交信息
+    echo -e "${BLUE}📝 提交详情：${NC}"
+    echo -e "${YELLOW}变更的文件：${NC}"
+    git status --short singularity/
+    
+    echo -e "${YELLOW}文件统计：${NC}"
+    find singularity/ -type f | wc -l
+    
+    git commit -m "🌌 更新 Singularity: $(date +'%Y-%m-%d %H:%M:%S')
+    
+- 构建版本: $(date +'%Y%m%d%H%M%S')
+- 文件数量: $(find singularity/ -type f | wc -l) 个文件
+- 自动部署"
+    
+    git push
+    echo -e "${GREEN}✅ 主页更新成功${NC}"
+else
+    echo -e "${YELLOW}⚠️ 没有检测到文件变化${NC}"
+    echo -e "${YELLOW}详细诊断：${NC}"
+    
+    # 详细诊断信息
+    echo "Git 状态详情:"
+    git status --porcelain
+    echo "工作区差异:"
+    git diff --name-only
+    echo "暂存区差异:"
+    git diff --cached --name-only
+    echo "singularity 目录文件列表:"
+    find singularity/ -type f | head -10
+    
+    # 即使没有检测到变化也强制提交（用于调试）
+    read -p "🤔 是否强制提交？(y/N): " force_commit </dev/tty
+    if [[ $force_commit =~ ^[Yy]$ ]]; then
+        git add singularity/
+        git commit -m "🔧 强制更新 Singularity: $(date +'%Y-%m-%d %H:%M:%S')"
+        git push
+        echo -e "${GREEN}✅ 强制提交完成${NC}"
+    else
+        echo -e "${YELLOW}💡 提示：可以检查构建输出是否与之前完全相同${NC}"
+    fi
+fi
 cd - > /dev/null
 
 echo -e "${GREEN}✅ 部署完成！${NC}"
