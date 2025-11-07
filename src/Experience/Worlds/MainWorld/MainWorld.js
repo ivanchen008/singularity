@@ -38,6 +38,9 @@ export default class MainWorld extends EventEmitter {
         this.init()
 
         this.scene.add( this.camera.instance )
+
+        // 注册HDR资源配置
+        this.setupHDRResources();
     }
 
     init() {
@@ -119,5 +122,77 @@ export default class MainWorld extends EventEmitter {
         //     max: 4
         // } )
 
+    }
+
+    setupHDRResources() {
+        if (this.experience.progressiveHDRLoader) {
+            // 定义HDR资源URL映射
+            const hdrConfigs = [
+                {
+                    id: 'environment',
+                    urls: {
+                        'THUMBNAIL': 'assets/hdr/environment_thumb.hdr',
+                        'LOW': 'assets/hdr/environment_low.hdr',
+                        'MEDIUM': 'assets/hdr/environment_medium.hdr',
+                        'HIGH': 'assets/hdr/environment_high.hdr',
+                        'ORIGINAL': 'assets/hdr/environment.hdr'
+                    }
+                }
+            ];
+            
+            // 将配置传递给Experience进行加载
+            this.experience.hdrConfigurations = hdrConfigs;
+        }
+    }
+
+    loadDefaultHDR() {
+        // 先加载默认质量的HDR贴图（使用LOW质量作为默认）
+        if (this.experience.progressiveHDRLoader && this.experience.hdrConfigurations) {
+            const config = this.experience.hdrConfigurations[0]; // 'environment'配置
+            if (config) {
+                this.experience.progressiveHDRLoader.loadHDR(config.id, config.urls, 'LOW')
+                    .then(() => {
+                        console.log(`Default HDR (LOW) loaded successfully`);
+                        // 绑定到场景
+                        this.camera.setupHDRIfAvailable();
+                        // 开始加载更高品质的版本
+                        this.loadHigherQualityHDR(config);
+                    })
+                    .catch((error) => {
+                        console.error('Failed to load default HDR:', error);
+                    });
+            }
+        }
+    }
+
+    loadHigherQualityHDR(config) {
+        // 按质量等级逐步加载更高品质的HDR
+        const qualityLevels = ['MEDIUM', 'HIGH', 'ORIGINAL'];
+        let currentIndex = 0;
+        
+        const loadNextQuality = () => {
+            if (currentIndex < qualityLevels.length) {
+                const quality = qualityLevels[currentIndex];
+                console.log(`Loading HDR at ${quality} quality...`);
+                
+                this.experience.progressiveHDRLoader.load(config.id, config.urls, quality)
+                    .then(() => {
+                        console.log(`HDR ${quality} quality loaded successfully`);
+                        // 更新场景中的环境贴图
+                        this.camera.setupHDRIfAvailable();
+                        currentIndex++;
+                        // 延迟一段时间后再加载下一个质量等级
+                        setTimeout(loadNextQuality, 2000); // 2秒间隔
+                    })
+                    .catch((error) => {
+                        console.warn(`Failed to load HDR ${quality} quality:`, error);
+                        currentIndex++;
+                        setTimeout(loadNextQuality, 2000);
+                    });
+            }
+        };
+        
+        // 开始加载更高品质的HDR
+        loadNextQuality();
     }
 }

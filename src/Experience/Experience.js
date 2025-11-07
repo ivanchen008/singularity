@@ -18,6 +18,10 @@ import PostProcess from './Utils/PostProcess.js'
 import { isMobile } from '@experience/Utils/Helpers/Global/isMobile';
 import Ui from "@experience/Ui/Ui.js";
 
+import ProgressiveHDRLoader from './Worlds/MainWorld/loaders/ProgressiveHDRLoader.js';
+import InitialHDRLoader from './Worlds/MainWorld/loaders/InitialHDRLoader.js';
+import BackgroundHDRLoader from './Worlds/MainWorld/loaders/BackgroundHDRLoader.js';
+
 export default class Experience extends EventEmitter {
 
     static _instance = null
@@ -58,7 +62,9 @@ export default class Experience extends EventEmitter {
 
         this.setDefaultCode();
 
-        this.init()
+        this.init();
+
+        this.initProgressiveHDRLoading();
     }
 
     init() {
@@ -246,5 +252,39 @@ export default class Experience extends EventEmitter {
 
         if ( this.debug.active )
             this.debug.ui.destroy()
+    }
+
+    initProgressiveHDRLoading() {
+        // 初始化HDR加载系统
+        this.progressiveHDRLoader = new ProgressiveHDRLoader(this.renderer.instance);
+        this.initialHDRLoader = new InitialHDRLoader(this.progressiveHDRLoader);
+        this.backgroundHDRLoader = new BackgroundHDRLoader(this.progressiveHDRLoader, this);
+        
+        // 加载初始HDR
+        this.loadInitialHDRs();
+        
+        // 设置后台加载
+        this.backgroundHDRLoader.setupUserActivityListeners();
+    }
+
+    async loadInitialHDRs() {
+        // 实现初始HDR加载逻辑
+        try {
+            // 使用从World传来的配置
+            const hdrConfigs = this.hdrConfigurations || [];
+            
+            if (hdrConfigs.length > 0) {
+                const results = await this.initialHDRLoader.loadInitialHDRs(hdrConfigs);
+                
+                // 将HDR绑定到场景
+                results.forEach(result => {
+                    if (result.texture) {
+                        this.progressiveHDRLoader.bindToScene(result.id, this.scene);
+                    }
+                });
+            }
+        } catch (error) {
+            console.error('Failed to load initial HDRs:', error);
+        }
     }
 }

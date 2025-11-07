@@ -35,6 +35,8 @@ export default class Camera
         this.setInstance()
         this.setControls()
         this._setAutoPlayListeners()
+
+        this.setupHDRIfAvailable();
     }
 
     setInstance()
@@ -281,5 +283,30 @@ export default class Camera
 
     animateCameraPosition() {
 
+    }
+
+    
+    // 新增方法
+    setupHDRIfAvailable() {
+        // 如果HDR系统已就绪，将环境贴图绑定到场景
+        if (this.experience.progressiveHDRLoader) {
+            console.log('Setting up HDR environment map');
+            // 绑定环境HDR ID为 'environment'
+            this.experience.progressiveHDRLoader.bindToScene('environment', this.scene);
+            
+            // 监听HDR更新事件
+            this.experience.progressiveHDRLoader.onUpdate = (id, texture) => {
+                if (id === 'environment') {
+                    console.log('HDR environment map updated');
+                    this.onHDRUpdated(texture);
+                }
+            };
+        }
+    }
+
+    onHDRUpdated(texture) {
+        // HDR贴图更新时的回调处理
+        console.log('HDR texture updated, resolution:', texture.image.width, 'x', texture.image.height);
+        // 可以在这里添加一些视觉过渡效果
     }
 }
